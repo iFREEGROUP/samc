@@ -1,3 +1,4 @@
 /target
 *.safetensors
 *.jpg
+*.png

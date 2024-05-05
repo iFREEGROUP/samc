@@ -1,5 +1,7 @@
 use axum::{extract::{Multipart, State}, response::IntoResponse};
+use hyper::StatusCode;
 use segment::{load_image_from_mem, Masker, Segment, SegmentInferable};
+use serde_json::json;
 
 use crate::{error::Error, render::Payload};
 
@@ -65,8 +67,13 @@ pub(crate) async fn sam_anything(
 
         let mask = model.inference(image, &pos_points, neg_points.as_deref())?;
 
-        mask.save(img, "temp.jpg").unwrap();
+        mask.save(img, "temp.png").unwrap();
+
+        return Ok(Payload::success(json!({
+            "mask": mask.to_base64(w as u32,h as u32).unwrap()
+        })))
     }
 
-    Ok(Payload::success("data"))
+    Ok(Payload::error(StatusCode::INTERNAL_SERVER_ERROR, "unkown error"))
+    
 }

@@ -1,8 +1,9 @@
 pub mod segment_anything;
 pub use candle_core::{DType, Device, Tensor,Error};
 use candle_nn::VarBuilder;
-use image::DynamicImage;
-use std::path::Path;
+use image::{DynamicImage, GenericImageView};
+use std::{io::Write, path::Path};
+use base64::prelude::*;
 
 use self::segment_anything::sam::Sam;
 // pub type  Mask = Vec<u8>;
@@ -11,6 +12,24 @@ pub struct Mask {
     pub h: usize,
     pub w: usize,
     pub points: Vec<(f64, f64, bool)>,
+}
+
+impl Mask {
+    pub fn to_base64(&self,w:u32,h:u32)->Result<String, anyhow::Error> {
+        let mask_img: image::ImageBuffer<image::Rgb<u8>, Vec<u8>> =
+            image::ImageBuffer::from_raw(self.w as u32, self.h as u32, self.mask.clone()).unwrap();
+        let mask_img = image::DynamicImage::from(mask_img).resize_to_fill(
+            w, h,
+            image::imageops::FilterType::CatmullRom,
+        );
+        
+        let b = mask_img.to_rgba8();
+        let mut f = std::fs::File::create("path.png").unwrap();
+        let _ = f.write_all(&b);
+        Ok(
+            BASE64_STANDARD.encode(mask_img.to_rgba8().to_vec())
+        )
+    }
 }
 
 pub fn load_image<P: AsRef<std::path::Path>>(
@@ -176,6 +195,7 @@ impl Masker for Mask {
             };
             imageproc::drawing::draw_filled_circle_mut(&mut img, (x, y), 3, color);
         }
+        
         img.save(p)?;
         Ok(())
     }

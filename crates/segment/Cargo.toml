@@ -1,0 +1,21 @@
+[package]
+name = "segment"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[dependencies]
+candle-core = {version = "0.5.0",optional = true}
+candle-nn = {version = "0.5.0",optional = true}
+candle-transformers = {version = "0.5.0",optional = true}
+imageproc = "0.24.0"
+image = "0.25.1"
+anyhow = {workspace = true}
+tracing = "0.1"
+rayon = "*"
+
+
+[features]
+default = ["cpu"]
+cuda = ["candle-nn/cuda","candle-core/cuda","candle-transformers/cuda"]
+cpu =["candle-nn","candle-core","candle-transformers"]

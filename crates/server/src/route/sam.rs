@@ -14,28 +14,23 @@ pub(crate) async fn sam_anything(
 
     while let Some(field) = multipart.next_field().await.unwrap() {
         match field.name().unwrap_or_default() {
-            "pos_points" => {
+            "inputs" => {
                 let points: String = field.text().await.map_err(|_| Error::RequireParam)?;
                 let points: Vec<usize> = points
                     .split(',')
                     .map(|x| x.parse::<usize>().unwrap_or_default())
                     .collect::<Vec<_>>();
-                if points.len() != 2 {
-	                    return Err(Error::ErrorParam("points 参数必须为两个数字，如：0,0".to_string()));
+                if points.len() != 3 {
+	                    return Err(Error::ErrorParam("IInputs format error,you should input 3 elements and the last one is 0 or 1,like: [x,y,0]".to_string()));
                 }
-                pos_points.push((points[0], points[1]))
-            }
-            "neg_points" => {
-                let points: String = field.text().await.map_err(|_| Error::RequireParam)?;
-                let points: Vec<usize> = points
-                    .split(',')
-                    .map(|x| x.parse::<usize>().unwrap_or_default())
-                    .collect::<Vec<_>>();
-                if points.len() != 2 {
-	                    return Err(Error::ErrorParam("points 参数必须为两个数字，如：0,0".to_string()));
+                if points[2] == 0 {
+                    pos_points.push((points[0], points[1]))
                 }
-                neg_points.push((points[0], points[1]))
+                if points[2] == 1 {
+                    neg_points.push((points[0], points[1]))
+                }
             }
+            
             "files" => {
                 let file_name = field.file_name().unwrap_or_default().to_string();
                 let _content_type = field.content_type().unwrap_or_default().to_string();

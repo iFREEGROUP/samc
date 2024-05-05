@@ -19,6 +19,9 @@ impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
         let (status, message) = match self {
             Error::ImageLoadError(e) => (StatusCode::BAD_REQUEST, e.to_string()),
+            Error::TensorError(e) => (StatusCode::BAD_REQUEST, e.to_string()),
+            Error::RequireParam => (StatusCode::BAD_REQUEST, "require param".to_owned()),
+            Error::ErrorParam(e) => (StatusCode::BAD_REQUEST, e),
             _ => (StatusCode::INTERNAL_SERVER_ERROR, "server error".to_owned()),
         };
         

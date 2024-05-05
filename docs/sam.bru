@@ -1,0 +1,18 @@
+meta {
+  name: sam
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{host}}/api/sam
+  body: multipartForm
+  auth: none
+}
+
+body:multipart-form {
+  inputs: 512,512,0
+  files: @file(/home/kingzcheung/下载/ComfyUI_00003_.png)
+  inputs: 550,512,0
+  inputs: 0,0,1
+}

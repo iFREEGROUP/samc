@@ -1,11 +1,13 @@
 pub mod segment_anything;
-pub use candle_core::{DType, Device, Tensor,Error};
+use self::segment_anything::sam::Sam;
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
+pub use candle_core::{DType, Device, Error, Tensor};
 use candle_nn::VarBuilder;
 use image::{DynamicImage, GenericImageView};
-use std::{io::Write, path::Path};
-use base64::prelude::*;
-
-use self::segment_anything::sam::Sam;
+use std::{
+    io::{Cursor, Write},
+    path::Path,
+};
 // pub type  Mask = Vec<u8>;
 pub struct Mask {
     pub mask: Vec<u8>,
@@ -15,20 +17,22 @@ pub struct Mask {
 }
 
 impl Mask {
-    pub fn to_base64(&self,w:u32,h:u32)->Result<String, anyhow::Error> {
+    pub fn to_base64(&self, w: u32, h: u32) -> Result<String, anyhow::Error> {
         let mask_img: image::ImageBuffer<image::Rgb<u8>, Vec<u8>> =
             image::ImageBuffer::from_raw(self.w as u32, self.h as u32, self.mask.clone()).unwrap();
         let mask_img = image::DynamicImage::from(mask_img).resize_to_fill(
-            w, h,
+            w,
+            h,
             image::imageops::FilterType::CatmullRom,
         );
-        
-        let b = mask_img.to_rgba8();
+
+        let mut buf: Vec<u8> = Vec::new();
+        mask_img.write_to(&mut Cursor::new(&mut buf), image::ImageFormat::Png)?;
+
         let mut f = std::fs::File::create("path.png").unwrap();
-        let _ = f.write_all(&b);
-        Ok(
-            BASE64_STANDARD.encode(mask_img.to_rgba8().to_vec())
-        )
+        let _ = f.write_all(&buf);
+        let b64 = BASE64.encode(&buf);
+        Ok(b64)
     }
 }
 
@@ -62,13 +66,31 @@ pub fn load_image<P: AsRef<std::path::Path>>(
     Ok((data, initial_h, initial_w))
 }
 
+pub fn load_image_from_base64(
+    data: &str,
+    resize_longest: Option<usize>,
+) -> anyhow::Result<(candle_core::Tensor, usize, usize)> {
+    let offset = data.find(',').unwrap_or(data.len()) + 1;
+
+    let mut value = String::from(data);
+    // let value = &data[..offset];
+    value.drain(..offset);
+
+    let res = BASE64
+        .decode(value)
+        .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+
+    let loaded =
+        load_image_from_mem(&res, resize_longest).map_err(|e| anyhow::anyhow!(e.to_string()))?;
+
+    Ok(loaded)
+}
 
 pub fn load_image_from_mem(
     b: &[u8],
     resize_longest: Option<usize>,
 ) -> candle_core::Result<(Tensor, usize, usize)> {
-    let img = image::load_from_memory(b)
-        .map_err(candle_core::Error::wrap)?;
+    let img = image::load_from_memory(b).map_err(candle_core::Error::wrap)?;
     let (initial_h, initial_w) = (img.height() as usize, img.width() as usize);
     let img = match resize_longest {
         None => img,
@@ -195,7 +217,7 @@ impl Masker for Mask {
             };
             imageproc::drawing::draw_filled_circle_mut(&mut img, (x, y), 3, color);
         }
-        
+
         img.save(p)?;
         Ok(())
     }
@@ -209,7 +231,6 @@ mod test {
     use candle_transformers::models::segment_anything::sam::Sam;
 
     use crate::load_image;
-
 
     #[test]
     fn test_sam() -> anyhow::Result<()> {

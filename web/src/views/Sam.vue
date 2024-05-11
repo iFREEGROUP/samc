@@ -7,7 +7,10 @@ import TabPanel from 'primevue/tabpanel';
 import Konva from 'konva'
 import Dock from 'primevue/dock';
 import Button from 'primevue/button';
-import magicCC from '../assets/cc-magic.svg?raw'
+import magicBlack from '../assets/cc-magic-black.svg?raw'
+import magicWhite from '../assets/cc-magic-white.svg?raw'
+import resetBlack from '../assets/reset-black.svg?raw'
+import { sam_from_base64 } from '../model';
 
 
 
@@ -21,15 +24,17 @@ import magicCC from '../assets/cc-magic.svg?raw'
 
 
 const annaRef = ref(null)
+const annaStatus = ref(false)
 
+const resetRef = ref(null)
 const samcCanvas = ref(null);
 
-const initKonva = (width,height) => {
+const initKonva = (width, height) => {
     var stage = new Konva.Stage({
         container: 'container',
         width: width,
         height: height,
-      });
+    });
     var layer = new Konva.Layer();
 
     var group = new Konva.Group({
@@ -38,59 +43,115 @@ const initKonva = (width,height) => {
         rotation: 0,
         listening: false,
         draggable: true,
-      });
+    });
 
-    
+
     let imageObj = new window.Image()
+    let maskObj = new window.Image()
+
+    var points = [];
+
     imageObj.src = Rjpeg
+
     imageObj.onload = () => {
         let size = adjustImageToCanvas(imageObj.width, imageObj.height, width, height)
 
+
         var yoda = new Konva.Image({
-          x: 0,
-          y: 0,
-          image: imageObj,
-          width: size.width,
-          height: size.height,
-          
+            x: 0,
+            y: 0,
+            image: imageObj,
+            width: size.width,
+            height: size.height,
+
         });
 
-        yoda.on('mousedown', function(e) {
-        console.log(e)
-        var circle = new Konva.Circle({
-            x: e.evt.layerX,
-            y: e.evt.layerY,
-            radius: 7,
-            fill: 'red',
-            stroke: 'black',
-            strokeWidth: 4
+        group.on('mousedown', function (e) {
+            console.log(e)
+            var circle = new Konva.Circle({
+                x: e.evt.layerX,
+                y: e.evt.layerY,
+                radius: 7,
+                fill: 'red',
+                stroke: 'black',
+                strokeWidth: 4
+            });
+            group.add(circle);
+            points.push([e.evt.layerX, e.evt.layerY, false])
+
+            if (annaStatus) {
+                yoda.toDataURL({
+                    mimeType: 'image/png',
+                    quality: 1,
+                    callback: function (dataUrl) {
+                        sam_from_base64(dataUrl, points).then(({ data }) => {
+                            maskObj.src = `data:image/png;base64,${data.data.mask}`
+                            maskObj.onload = () => {
+                                var mask = new Konva.Image({
+                                    x: 0,
+                                    y: 0,
+                                    image: maskObj,
+                                    width: size.width,
+                                    height: size.height,
+                                    name: 'mask',
+                                    id: "mask"
+                                });
+                                mask.opacity(0.5)
+                                if (group.findOne("#mask")) {
+                                    group.findOne("#mask").destroy()
+                                }
+                                group.add(mask)
+                                mask.zIndex(1)
+                            }
+                        })
+                    }
+                })
+
+            }
         });
-        group.add(circle);
-      });
         // add the shape to the layer
         group.add(yoda);
 
-    //     var tr = new Konva.Transformer({
-    //         node: yoda,
-    //         centeredScaling: false
-    //     });
-    //   group.add(tr);
+        resetRef.value.$el.addEventListener('click', e => {
+            group.removeChildren()
+
+            if (yoda) {
+                group.add(yoda)
+
+            }
+            console.log(group)
+            console.log(yoda)
+
+        })
+
+        annaRef.value.$el
+            .addEventListener('click', e => {
+                annaStatus.value = !annaStatus.value
+                if (annaStatus.value) {
+                    group.listening(true)
+                    samcCanvas.value.style.cursor = 'crosshair'
+
+                } else {
+                    group.listening(false)
+                    samcCanvas.value.style.cursor = 'default'
+                }
+
+            })
     }
-    annaRef.value.$el
-    .addEventListener('click', e=>{
-        group.listening(true)
-        samcCanvas.value.style.cursor = 'crosshair'
-    })
-    
+
+
+
+
+
     layer.add(group);
     stage.add(layer);
 }
 
 onMounted(() => {
 
-    
 
-    
+
+
 
     if (samcCanvas.value) {
         initKonva(samcCanvas.value.offsetWidth, samcCanvas.value.offsetHeight)
@@ -116,13 +177,23 @@ onMounted(() => {
             <div id="container"></div>
             <div class="absolute inset-y-0 left-0 border-r border-zinc-100 mr-2">
                 <ul class="flex flex-col items-center justify-center h-full p-2 bg-zinc-100">
-                    <li><Button severity="secondary" ref="annaRef">
-                        
-                        <template #icon >
-                            <span v-html="magicCC"></span>
-                        </template>
-                    </Button></li>
-                    <li>aaa</li>
+                    <li>
+                        <Button :severity="annaStatus ? 'default' : 'secondary'" ref="annaRef">
+
+                            <template #icon>
+                                <span v-show="!annaStatus" v-html="magicBlack"></span>
+                                <span v-show="annaStatus" v-html="magicWhite"></span>
+                            </template>
+                        </Button>
+                    </li>
+                    <li>
+                        <Button :severity="'secondary'" ref="resetRef">
+
+                            <template #icon>
+                                <span v-html="resetBlack"></span>
+                            </template>
+                        </Button>
+                    </li>
                 </ul>
             </div>
         </div>
@@ -148,7 +219,7 @@ onMounted(() => {
                         numquam eius modi.
                     </p>
                 </TabPanel>
-            
+
             </TabView>
         </div>
     </div>

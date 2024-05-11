@@ -12,6 +12,8 @@ pub enum Error {
     RequireParam,
     #[error("参数错误: {0}")]
     ErrorParam(String),
+    #[error("{0}")]
+    Other(#[from] anyhow::Error),
 }
 
 #[allow(unreachable_patterns)]

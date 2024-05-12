@@ -66,7 +66,7 @@ const initKonva = (width, height) => {
             height: size.height,
         });
         
-
+        
         group.on('mousedown', function (e) {
             console.log(e)
             var circle = new Konva.Circle({
@@ -180,9 +180,8 @@ const checkCurrentImageHandle = (file) => {
 onMounted(() => {
 
     fetch_files()
-    
+    document.querySelector("#container").addEventListener('contextmenu',e=>e.preventDefault())
 })
-
 </script>
 <template>
     <div class="grid grid-cols-8  h-full">

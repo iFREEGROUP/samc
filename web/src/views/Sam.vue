@@ -1,6 +1,5 @@
 <script setup>
 import { ref, onMounted } from 'vue';
-import Rjpeg from '../assets/R.jpeg'
 import { adjustImageToCanvas } from '../utils'
 import TabView from 'primevue/tabview';
 import TabPanel from 'primevue/tabpanel';
@@ -10,7 +9,7 @@ import Button from 'primevue/button';
 import magicBlack from '../assets/cc-magic-black.svg?raw'
 import magicWhite from '../assets/cc-magic-white.svg?raw'
 import resetBlack from '../assets/reset-black.svg?raw'
-import { sam_from_base64 } from '../model';
+import { list_files, sam_from_base64 } from '../model';
 
 
 
@@ -28,6 +27,8 @@ const annaStatus = ref(false)
 
 const resetRef = ref(null)
 const samcCanvas = ref(null);
+
+const currentImage = ref(null)
 
 const initKonva = (width, height) => {
     var stage = new Konva.Stage({
@@ -51,8 +52,8 @@ const initKonva = (width, height) => {
 
     var points = [];
 
-    imageObj.src = Rjpeg
-
+    imageObj.src = currentImage.value
+    imageObj.crossOrigin = 'Anonymous';
     imageObj.onload = () => {
         let size = adjustImageToCanvas(imageObj.width, imageObj.height, width, height)
 
@@ -63,8 +64,8 @@ const initKonva = (width, height) => {
             image: imageObj,
             width: size.width,
             height: size.height,
-
         });
+        
 
         group.on('mousedown', function (e) {
             console.log(e)
@@ -78,12 +79,16 @@ const initKonva = (width, height) => {
             });
             group.add(circle);
             points.push([e.evt.layerX, e.evt.layerY, false])
-
+            console.log(yoda)
             if (annaStatus) {
                 yoda.toDataURL({
                     mimeType: 'image/png',
                     quality: 1,
                     callback: function (dataUrl) {
+                        if (!dataUrl) {
+                            alert("图片加载失败，可能图片过大")
+                            return
+                        }
                         sam_from_base64(dataUrl, points).then(({ data }) => {
                             maskObj.src = `data:image/png;base64,${data.data.mask}`
                             maskObj.onload = () => {
@@ -147,15 +152,35 @@ const initKonva = (width, height) => {
     stage.add(layer);
 }
 
-onMounted(() => {
+const files = ref([])
+
+const fetch_files = () => {
+    list_files().then(({ data }) => {
+        files.value = data.data
+        if (!currentImage.value) {
+            currentImage.value = `${base_api}/${files.value[0]}`
+            if (samcCanvas.value) {
+                console.log("init konva")
+                initKonva(samcCanvas.value.offsetWidth, samcCanvas.value.offsetHeight)
+            }
+        }
+    })
+}
+
+const base_api = `${import.meta.env.VITE_APP_API}/data`
 
 
-
-
-
+const checkCurrentImageHandle = (file) => {
+    currentImage.value = `${base_api}/${file}`
     if (samcCanvas.value) {
         initKonva(samcCanvas.value.offsetWidth, samcCanvas.value.offsetHeight)
     }
+}
+
+onMounted(() => {
+
+    fetch_files()
+    
 })
 
 </script>
@@ -164,9 +189,9 @@ onMounted(() => {
         <div class="col-span-1 h-full">
             <div class="w-full h-full bg-zinc-100 ">
                 <ul class="h-screen overflow-x-hidden overflow-y-scroll  scrollbar-thin">
-                    <li class="cursor-pointer p-2" v-for="i in 10">
+                    <li class="cursor-pointer p-2" v-for="file in files" :key="file" @click="checkCurrentImageHandle(file)">
                         <div class="relative">
-                            <Image :src="Rjpeg" />
+                            <Image :src="`${base_api}/${file}`" />
                             <span class="my-2">labal this is a long cat hahahahahah.jpg</span>
                         </div>
                     </li>

@@ -14,6 +14,8 @@ pub enum Error {
     ErrorParam(String),
     #[error("{0}")]
     Other(#[from] anyhow::Error),
+    #[error("not dir")]
+    NotDir,
 }
 
 #[allow(unreachable_patterns)]

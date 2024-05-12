@@ -1,8 +1,9 @@
 use std::net::SocketAddr;
 
 use axum::Router;
+use hyper::Method;
 use segment::Segment;
-use tower_http::services::ServeDir;
+use tower_http::{cors::{Any, CorsLayer}, services::ServeDir};
 use tracing::info;
 
 use crate::{asset::index_handler, config::Config, route::routes, state::AppState};
@@ -46,6 +47,9 @@ pub async fn start(conf: Config) {
     let app = Router::new()
         .nest("/api", routes())
         .nest_service("/data", serve_dir)
+        .layer(
+            CorsLayer::permissive()
+        )
         .with_state(shared_state)
         .fallback(index_handler);
 

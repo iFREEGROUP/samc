@@ -3,7 +3,7 @@ use self::segment_anything::sam::Sam;
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 pub use candle_core::{DType, Device, Error, Tensor};
 use candle_nn::VarBuilder;
-use image::{DynamicImage, GenericImageView};
+use image::DynamicImage;
 use std::{
     io::{Cursor, Write},
     path::Path,

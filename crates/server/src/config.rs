@@ -7,7 +7,10 @@ pub struct Config {
 
     #[serde(default = "default_base_dir")]
     pub base_dir: String,
+
+    pub use_api:Option<String>,
 }
+
 
 fn default_port() -> u16 {
     5050

@@ -14,6 +14,8 @@ pub enum Error {
     ErrorParam(String),
     #[error("{0}")]
     Other(#[from] anyhow::Error),
+    #[error("{0}")]
+    RequestApi(#[from] reqwest::Error),
     #[error("not dir")]
     NotDir,
 }
@@ -26,6 +28,9 @@ impl IntoResponse for Error {
             Error::TensorError(e) => (StatusCode::BAD_REQUEST, e.to_string()),
             Error::RequireParam => (StatusCode::BAD_REQUEST, "require param".to_owned()),
             Error::ErrorParam(e) => (StatusCode::BAD_REQUEST, e),
+            Error::NotDir => (StatusCode::BAD_REQUEST, "not dir".to_owned()),
+            Error::Other(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+            Error::RequestApi(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
             _ => (StatusCode::INTERNAL_SERVER_ERROR, "server error".to_owned()),
         };
         

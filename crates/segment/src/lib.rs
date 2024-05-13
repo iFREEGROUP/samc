@@ -162,7 +162,7 @@ impl SegmentInferable for Segment {
             "mask generated in {:.2}s",
             start_time.elapsed().as_secs_f32()
         );
-        println!("mask:\n{mask}");
+        // println!("mask:\n{mask}");
         println!("iou_predictions: {iou_predictions}");
 
         let mask = (mask.ge(0.)? * 255.)?;
@@ -258,7 +258,7 @@ mod test {
             "mask generated in {:.2}s",
             start_time.elapsed().as_secs_f32()
         );
-        println!("mask:\n{mask}");
+        // println!("mask:\n{mask}");
         println!("iou_predictions: {iou_predictions}");
 
         let mask = (mask.ge(0.)? * 255.)?;

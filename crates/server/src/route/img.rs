@@ -1,5 +1,4 @@
 use axum::{extract::State, response::IntoResponse};
-use tracing::info;
 
 use crate::error::Error;
 use crate::{config::Config, render::Payload};

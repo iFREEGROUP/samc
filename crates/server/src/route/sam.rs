@@ -1,3 +1,5 @@
+use std::vec;
+
 use axum::{
     extract::{Multipart, State},
     response::IntoResponse,
@@ -5,10 +7,11 @@ use axum::{
 };
 use hyper::StatusCode;
 use segment::{load_image_from_base64, load_image_from_mem, Masker, Segment, SegmentInferable};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
+use tracing::info;
 
-use crate::{error::Error, render::Payload};
+use crate::{config::Config, error::Error, render::Payload};
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct SegmentParam {
@@ -17,6 +20,7 @@ pub(crate) struct SegmentParam {
 }
 
 pub(crate) async fn sam_anything_base64(
+    State(config): State<Config>,
     State(model): State<Segment>,
     Json(param): Json<SegmentParam>,
 ) -> Result<impl IntoResponse, Error> {
@@ -41,11 +45,66 @@ pub(crate) async fn sam_anything_base64(
         None
     };
 
-    let mask = model.inference(image, &pos_points, neg_points.as_deref())?;
+    let mask = if let Some(api) = config.use_api {
+        inference_api(&api, param.image,&pos_points, neg_points.as_deref()).await?
+    } else {
+        let mask = model.inference(image, &pos_points, neg_points.as_deref())?;
+        mask.to_base64(w as u32, h as u32).unwrap()
+    };
 
     Ok(Payload::success(json!({
-        "mask": mask.to_base64(w as u32,h as u32).unwrap()
+        "mask": mask
     })))
+}
+
+async fn inference_api(
+    api: &str,
+    images:String,
+    pos_points: &[(f64, f64)],
+    neg_points: Option<&[(f64, f64)]>,
+) -> Result<String, reqwest::Error> {
+    #[derive(Serialize, Deserialize, Debug, Clone)]
+    pub struct Response {
+        #[serde(rename = "inputs")]
+        pub inputs: Vec<Vec<i32>>,
+        #[serde(rename = "mask")]
+        pub mask: String,
+    }
+
+    #[derive(Debug,Serialize)]
+    pub struct Form {
+        images:String,
+        inputs: Vec<String>
+    }
+
+    let mut inputs = vec![];
+    for (x, y) in pos_points {
+        inputs.push(format!("{},{},1", x, y));
+    }
+    if let Some(neg_points) = neg_points {
+        for (x, y) in neg_points {
+            inputs.push(format!("{},{},0", x, y));
+        }
+    }
+
+    let form = Form {
+        images,
+        inputs,
+    };
+    // info!("{:?}",&form);
+
+    let client = reqwest::Client::new();
+    let res: Response = client
+        .post(api)
+        .json(&form)
+        .send()
+        .await?
+        .json()
+        .await?;
+    info!("{:?}",&res);
+
+
+    Ok(res.mask)
 }
 
 #[allow(clippy::single_match)]
@@ -68,10 +127,10 @@ pub(crate) async fn sam_anything(
                 if points.len() != 3 {
                     return Err(Error::ErrorParam("IInputs format error,you should input 3 elements and the last one is 0 or 1,like: [x,y,0]".to_string()));
                 }
-                if points[2] == 0 {
+                if points[2] == 1 {
                     pos_points.push((points[0], points[1]))
                 }
-                if points[2] == 1 {
+                if points[2] == 0 {
                     neg_points.push((points[0], points[1]))
                 }
             }

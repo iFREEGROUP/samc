@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 use axum::Router;
 use segment::Segment;
 use tower_http::{
-    cors::{Any, CorsLayer},
+    cors::CorsLayer,
     services::ServeDir,
 };
 use tracing::info;

@@ -65,13 +65,18 @@ const initKonva = (width, height) => {
             width: size.width,
             height: size.height,
         });
-        
-        
-        group.on('mousedown', function (e) {
+
+
+        group.on('pointerdown', function (e) {
             console.log(e)
+            var pos = group.getStage().getPointerPosition()
+            var transform = group.getAbsoluteTransform().copy();
+            transform.invert();
+            var gPos =  transform.point(pos);
+            // console.log(pos,gPos)
             var circle = new Konva.Circle({
-                x: e.evt.layerX,
-                y: e.evt.layerY,
+                x: gPos.x,
+                y: gPos.y,
                 radius: 7,
                 fill: 'red',
                 stroke: 'black',
@@ -79,7 +84,6 @@ const initKonva = (width, height) => {
             });
             group.add(circle);
             points.push([e.evt.layerX, e.evt.layerY, false])
-            console.log(yoda)
             if (annaStatus) {
                 yoda.toDataURL({
                     mimeType: 'image/png',
@@ -180,48 +184,49 @@ const checkCurrentImageHandle = (file) => {
 onMounted(() => {
 
     fetch_files()
-    document.querySelector("#container").addEventListener('contextmenu',e=>e.preventDefault())
+    document.querySelector("#container").addEventListener('contextmenu', e => e.preventDefault())
 })
 </script>
 <template>
-    <div class="grid grid-cols-8  h-full">
+    <div class="grid grid-cols-8  h-full overflow-x-hidden">
         <div class="col-span-1 h-full">
             <div class="w-full h-full bg-zinc-100 ">
-                <ul class="h-screen overflow-x-hidden overflow-y-scroll  scrollbar-thin">
-                    <li class="cursor-pointer p-2" v-for="file in files" :key="file" @click="checkCurrentImageHandle(file)">
-                        <div class="relative">
-                            <Image :src="`${base_api}/${file}`" />
-                            <span class="my-2">labal this is a long cat hahahahahah.jpg</span>
+                <ul class="h-screen overflow-x-hidden overflow-y-scroll scrollbar-thin">
+                    <li class="cursor-pointer m-2" v-for="file in files" :key="file"
+                        @click="checkCurrentImageHandle(file)">
+                        <div class="relative bg-white p-2 border rounded-md overflow-hidden hover:border-zinc-500">
+                            <!-- <Image :src="`${base_api}/${file}`" /> -->
+                            <span class="my-2 text-wrap break-all">{{file}}</span>
                         </div>
                     </li>
                 </ul>
             </div>
         </div>
-        <div class="col-span-6 py-5 relative bg-zinc-200" ref="samcCanvas">
-            <div id="container"></div>
-            <div class="absolute inset-y-0 left-0 border-r border-zinc-100 mr-2">
-                <ul class="flex flex-col items-center justify-center h-full p-2 bg-zinc-100">
-                    <li>
-                        <Button :severity="annaStatus ? 'default' : 'secondary'" ref="annaRef">
-
-                            <template #icon>
-                                <span v-show="!annaStatus" v-html="magicBlack"></span>
-                                <span v-show="annaStatus" v-html="magicWhite"></span>
-                            </template>
-                        </Button>
-                    </li>
-                    <li>
-                        <Button :severity="'secondary'" ref="resetRef">
-
-                            <template #icon>
-                                <span v-html="resetBlack"></span>
-                            </template>
-                        </Button>
-                    </li>
-                </ul>
+        <div class="col-span-7 bg-zinc-200" ref="samcCanvas">
+            <div class="relative flex">
+                <div class="border-r border-zinc-100 mr-2">
+                    <ul class="flex flex-col items-center justify-center  p-2 bg-zinc-100">
+                        <li>
+                            <Button :severity="annaStatus ? 'default' : 'secondary'" ref="annaRef">
+                                <template #icon>
+                                    <span v-show="!annaStatus" v-html="magicBlack"></span>
+                                    <span v-show="annaStatus" v-html="magicWhite"></span>
+                                </template>
+                            </Button>
+                        </li>
+                        <li>
+                            <Button :severity="'secondary'" ref="resetRef">
+                                <template #icon>
+                                    <span v-html="resetBlack"></span>
+                                </template>
+                            </Button>
+                        </li>
+                    </ul>
+                </div>
+                <div id="container" class="p-2"></div>
             </div>
         </div>
-        <div class="col-span-1">
+        <!-- <div class="col-span-1">
             <TabView>
                 <TabPanel header="Header I">
                     <p class="m-0">
@@ -245,6 +250,6 @@ onMounted(() => {
                 </TabPanel>
 
             </TabView>
-        </div>
+        </div> -->
     </div>
 </template>

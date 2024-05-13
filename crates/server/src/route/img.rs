@@ -19,7 +19,6 @@ pub(crate) async fn image_files(State(config): State<Config>) -> Result<impl Int
     let mut files = Vec::new();
     while let Ok(entity) = entities.next_entry().await {
         if let Some(entity) = entity {
-            info!("entity: {:?}", &entity);
             if entity.file_type().await.unwrap().is_file() {
                 files.push(entity.file_name().into_string().unwrap());
             }

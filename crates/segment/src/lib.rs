@@ -245,7 +245,7 @@ mod test {
         };
         let image_path = "/Users/kingzcheung/rust/itemsam/screenshot-20240424-113925.jpg";
 
-        let (image, initial_h, initial_w) = load_image(image_path, Some(sam::IMAGE_SIZE))?;
+        let (image, _initial_h, _initial_w) = load_image(image_path, Some(sam::IMAGE_SIZE))?;
         let image = image.to_device(&device)?;
 
         let sam = Sam::new_tiny(vb)?;

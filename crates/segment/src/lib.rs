@@ -66,10 +66,7 @@ pub fn load_image<P: AsRef<std::path::Path>>(
     Ok((data, initial_h, initial_w))
 }
 
-pub fn load_image_from_base64(
-    data: &str,
-    resize_longest: Option<usize>,
-) -> anyhow::Result<(candle_core::Tensor, usize, usize)> {
+pub fn base64_to_image(data: &str) ->anyhow::Result<Vec<u8>> {
     let offset = data.find(',').unwrap_or(data.len()) + 1;
 
     let mut value = String::from(data);
@@ -80,6 +77,14 @@ pub fn load_image_from_base64(
         .decode(value)
         .map_err(|e| anyhow::anyhow!(e.to_string()))?;
 
+    Ok(res)
+}
+
+pub fn load_image_from_base64(
+    data: &str,
+    resize_longest: Option<usize>,
+) -> anyhow::Result<(candle_core::Tensor, usize, usize)> {
+    let res = base64_to_image(data)?;
     let loaded =
         load_image_from_mem(&res, resize_longest).map_err(|e| anyhow::anyhow!(e.to_string()))?;
 

@@ -5,6 +5,7 @@ import PrimeOne from 'primevue/themes/primeone';
 import PrimeVueStyled from 'primevue/styled';
 import { ShadcnPreset } from './theme/preset';
 import VueKonva from 'vue-konva';
+import ToastService from 'primevue/toastservice';
 
 const app = createApp(App)
 
@@ -18,6 +19,6 @@ app.use(PrimeVueStyled, {
         }
     }
 });
-
+app.use(ToastService);
 
 app.mount('#app')

@@ -9,7 +9,10 @@ import Button from 'primevue/button';
 import magicBlack from '../assets/cc-magic-black.svg?raw'
 import magicWhite from '../assets/cc-magic-white.svg?raw'
 import resetBlack from '../assets/reset-black.svg?raw'
-import { list_files, sam_from_base64 } from '../model';
+import { list_files, sam_from_base64, save_mask } from '../model';
+import { watch } from 'vue';
+import { useToast } from 'primevue/usetoast';
+import Toast from 'primevue/toast';
 
 
 
@@ -18,17 +21,33 @@ import { list_files, sam_from_base64 } from '../model';
 
 
 
+function debounce(func, delay) {
+    let timeoutId;
 
+    return function () {
+        const context = this;
+        const args = arguments;
 
+        clearTimeout(timeoutId);
 
+        timeoutId = setTimeout(function () {
+            func.apply(context, args);
+        }, delay);
+    };
+}
 
+const toast = useToast();
 const annaRef = ref(null)
 const annaStatus = ref(false)
 
 const resetRef = ref(null)
 const samcCanvas = ref(null);
 
-const currentImage = ref(null)
+const currentImage = ref({
+    url: "",
+    path: "",
+    mask_url:""
+})
 
 const initKonva = (width, height) => {
     var stage = new Konva.Stage({
@@ -51,8 +70,9 @@ const initKonva = (width, height) => {
     let maskObj = new window.Image()
 
     var points = [];
+    
 
-    imageObj.src = currentImage.value
+    imageObj.src = currentImage.value.url
     imageObj.crossOrigin = 'Anonymous';
     imageObj.onload = () => {
         let size = adjustImageToCanvas(imageObj.width, imageObj.height, width, height)
@@ -68,11 +88,13 @@ const initKonva = (width, height) => {
 
 
         group.on('pointerdown', function (e) {
-            console.log(e)
+
+
+            // console.log(e)
             var pos = group.getStage().getPointerPosition()
             var transform = group.getAbsoluteTransform().copy();
             transform.invert();
-            var gPos =  transform.point(pos);
+            var gPos = transform.point(pos);
             // console.log(pos,gPos)
             var circle = new Konva.Circle({
                 x: gPos.x,
@@ -83,7 +105,7 @@ const initKonva = (width, height) => {
                 strokeWidth: 4
             });
             group.add(circle);
-            points.push([e.evt.layerX, e.evt.layerY, false])
+            points.push([parseInt(gPos.x), parseInt(gPos.y), false])
             if (annaStatus) {
                 yoda.toDataURL({
                     mimeType: 'image/png',
@@ -93,6 +115,7 @@ const initKonva = (width, height) => {
                             alert("图片加载失败，可能图片过大")
                             return
                         }
+
                         sam_from_base64(dataUrl, points).then(({ data }) => {
                             maskObj.src = `data:image/png;base64,${data.data.mask}`
                             maskObj.onload = () => {
@@ -113,6 +136,7 @@ const initKonva = (width, height) => {
                                 mask.zIndex(1)
                             }
                         })
+
                     }
                 })
 
@@ -136,6 +160,7 @@ const initKonva = (width, height) => {
         annaRef.value.$el
             .addEventListener('click', e => {
                 annaStatus.value = !annaStatus.value
+                console.log("annaStatus::", annaStatus.value)
                 if (annaStatus.value) {
                     group.listening(true)
                     samcCanvas.value.style.cursor = 'crosshair'
@@ -146,8 +171,51 @@ const initKonva = (width, height) => {
                 }
 
             })
-    }
 
+        document.addEventListener("keyup", function (event) {
+            if (event.key === "n") {
+                annaStatus.value = !annaStatus.value
+                console.log("annaStatus::", annaStatus.value)
+                if (annaStatus.value) {
+                    group.listening(true)
+                    samcCanvas.value.style.cursor = 'crosshair'
+
+                } else {
+                    group.listening(false)
+                    samcCanvas.value.style.cursor = 'default'
+                }
+            }
+            if (event.key === "Enter") {
+                //保存图片，并让group状态回到初始状态
+                save_mask(maskObj.src, currentImage.value.path).then((r) => {
+                    toast.add({ severity: 'success', summary: '保存成功', detail: '保存成功', life: 3000 });
+                })
+            }
+        })
+    }
+    if (currentImage.value.mask_url) {
+        maskObj.src = currentImage.value.mask_url
+        maskObj.crossOrigin = 'Anonymous';
+        maskObj.onload = () => {
+            let size = adjustImageToCanvas(imageObj.width, imageObj.height, width, height)
+
+            var mask = new Konva.Image({
+                x: 0,
+                y: 0,
+                image: maskObj,
+                width: size.width,
+                height: size.height,
+                name: 'mask',
+                id: "mask"
+            });
+            mask.opacity(0.5)
+            if (group.findOne("#mask")) {
+                group.findOne("#mask").destroy()
+            }
+            group.add(mask)
+            mask.zIndex(1)
+        }
+    }
 
 
 
@@ -161,10 +229,12 @@ const files = ref([])
 const fetch_files = () => {
     list_files().then(({ data }) => {
         files.value = data.data
-        if (!currentImage.value) {
-            currentImage.value = `${base_api}/${files.value[0]}`
+        if (!currentImage.value.url) {
+            currentImage.value.url = `${base_api}/${files.value[0].image_path}`
+            currentImage.value.path = files.value[0].image_path
+            currentImage.value.mask_url = `${base_api}/${files.value[0].mask_path}`
             if (samcCanvas.value) {
-                console.log("init konva")
+
                 initKonva(samcCanvas.value.offsetWidth, samcCanvas.value.offsetHeight)
             }
         }
@@ -175,7 +245,8 @@ const base_api = `${import.meta.env.VITE_APP_API}/data`
 
 
 const checkCurrentImageHandle = (file) => {
-    currentImage.value = `${base_api}/${file}`
+    currentImage.value.url = `${base_api}/${file}`
+    currentImage.value.path = file
     if (samcCanvas.value) {
         initKonva(samcCanvas.value.offsetWidth, samcCanvas.value.offsetHeight)
     }
@@ -192,17 +263,20 @@ onMounted(() => {
         <div class="col-span-1 h-full">
             <div class="w-full h-full bg-zinc-100 ">
                 <ul class="h-screen overflow-x-hidden overflow-y-scroll scrollbar-thin">
-                    <li class="cursor-pointer m-2" v-for="file in files" :key="file"
-                        @click="checkCurrentImageHandle(file)">
+                    <li class="cursor-pointer m-2" v-for="file in files" :key="file.image_path"
+                        @click="checkCurrentImageHandle(file.image_path)">
                         <div class="relative bg-white p-2 border rounded-md overflow-hidden hover:border-zinc-500">
                             <!-- <Image :src="`${base_api}/${file}`" /> -->
-                            <span class="my-2 text-wrap break-all">{{file}}</span>
+                            <span class="my-2 text-wrap break-all" :class="{
+                        'text-green-500': file.mask_path
+                    }">{{ file.image_path }}</span>
                         </div>
                     </li>
                 </ul>
             </div>
         </div>
         <div class="col-span-7 bg-zinc-200" ref="samcCanvas">
+            <Toast />
             <div class="relative flex">
                 <div class="border-r border-zinc-100 mr-2">
                     <ul class="flex flex-col items-center justify-center  p-2 bg-zinc-100">

@@ -11,7 +11,7 @@ export const adjustImageToCanvas = (imgWidth, imgHeight, canvasWidth, canvasHeig
             scaledWidth = canvasWidth;
             scaledHeight = imgHeight * scale;
         }
-        
+
         // 再检查调整后的高度是否也适合画布，避免只按宽度调整后高度仍超出
         if (scaledHeight > canvasHeight) {
             scale = canvasHeight / imgHeight;
@@ -26,4 +26,14 @@ export const adjustImageToCanvas = (imgWidth, imgHeight, canvasWidth, canvasHeig
         height: scaledHeight,
         scale
     };
+}
+
+export const debounce = (fn, delay = 500) => {
+    let timer = null
+    return function (...args) {
+        clearTimeout(timer)
+        timer = setTimeout(() => {
+            fn.call(this, ...args)
+        }, delay);
+    }
 }

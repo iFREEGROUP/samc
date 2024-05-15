@@ -16,7 +16,7 @@ use crate::{config::Config, error::Error, render::Payload};
 #[derive(Debug, Deserialize)]
 pub(crate) struct SegmentParam {
     pub(crate) image: String,
-    pub(crate) inputs: Vec<(f64, f64, bool)>,
+    pub(crate) inputs: Vec<(f64, f64, i16)>,
 }
 
 pub(crate) async fn sam_anything_base64(
@@ -32,7 +32,7 @@ pub(crate) async fn sam_anything_base64(
     )?;
 
     for input in &param.inputs {
-        if !input.2 {
+        if input.2 ==1 {
             pos_points.push((input.0, input.1));
         } else {
             neg_points.push((input.0, input.1));
@@ -101,7 +101,7 @@ async fn inference_api(
         .await?
         .json()
         .await?;
-    info!("{:?}",&res);
+    // info!("{:?}",&res);
 
 
     Ok(res.mask)

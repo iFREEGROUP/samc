@@ -1,14 +1,11 @@
-use anyhow::anyhow;
-use axum::{
-    extract::State,
-    response::IntoResponse,
-    Json,
-};
-use segment::base64_to_image;
-use std::path::PathBuf;
-use tokio::io::AsyncWriteExt;
 use crate::error::Error;
 use crate::{config::Config, render::Payload};
+use anyhow::anyhow;
+use axum::{extract::State, response::IntoResponse, Json};
+use segment::base64_to_image;
+use serde_json::json;
+use std::path::PathBuf;
+use tokio::io::AsyncWriteExt;
 
 #[derive(Debug, serde::Serialize)]
 pub(crate) struct FileInfo {
@@ -88,7 +85,7 @@ pub(crate) async fn save_mask(
         .to_str()
         .unwrap_or_default();
     let file_name = format!("{}_mask.png", then);
-    let mask_image_path = PathBuf::from(config.base_dir.as_str()).join(file_name);
+    let mask_image_path = PathBuf::from(config.base_dir.as_str()).join(&file_name);
     let data = param.mask.as_str();
     let res = base64_to_image(data)?;
 
@@ -97,5 +94,8 @@ pub(crate) async fn save_mask(
         .map_err(|e| anyhow!(e.to_string()))?;
     let _ = f.write_all(&res).await;
 
-    Ok(Payload::success(mask_image_path))
+    Ok(Payload::success(json!({
+        "full_path":mask_image_path,
+        "file_name":file_name,
+    })))
 }

@@ -4,6 +4,7 @@ use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 pub use candle_core::{DType, Device, Error, Tensor};
 use candle_nn::VarBuilder;
 use image::DynamicImage;
+use tracing::info;
 use std::{
     io::{Cursor, Write},
     path::Path,
@@ -135,11 +136,15 @@ pub struct Segment {
 }
 
 impl Segment {
-    pub fn new<P: AsRef<Path>>(model_file: P, device: Device) -> candle_core::Result<Self> {
+    pub fn new<P: AsRef<Path>>(model_file: P, device: Device,use_tiny:bool) -> candle_core::Result<Self> {
         let vb =
             unsafe { VarBuilder::from_mmaped_safetensors(&[model_file], DType::F32, &device)? };
 
-        let model = Sam::new_tiny(vb)?;
+        let model = if use_tiny {
+            Sam::new_tiny(vb)?
+        }else {
+            Sam::new(768, 12, 12, &[2, 5, 8, 11], vb)? // sam_vit_b
+        };
 
         Ok(Self { device, model })
     }
@@ -167,14 +172,15 @@ impl SegmentInferable for Segment {
             "mask generated in {:.2}s",
             start_time.elapsed().as_secs_f32()
         );
-        // println!("mask:\n{mask}");
+        
         println!("iou_predictions: {iou_predictions}");
 
         let mask = (mask.ge(0.)? * 255.)?;
+        
         let (_one, h, w) = mask.dims3()?;
         let mask = mask.expand((3, h, w))?;
         let mask_pixels = mask.permute((1, 2, 0))?.flatten_all()?.to_vec1::<u8>()?;
-
+        println!("mask:\n{:?}",mask.shape());
         Ok(Mask {
             mask: mask_pixels,
             h,
@@ -266,7 +272,7 @@ mod test {
         // println!("mask:\n{mask}");
         println!("iou_predictions: {iou_predictions}");
 
-        let mask = (mask.ge(0.)? * 255.)?;
+        let mask = (mask.ge(-1.2)? * 255.)?;
         let (_one, h, w) = mask.dims3()?;
         let mask = mask.expand((3, h, w))?;
 

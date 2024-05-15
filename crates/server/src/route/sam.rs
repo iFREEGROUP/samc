@@ -30,24 +30,36 @@ pub(crate) async fn sam_anything_base64(
         &param.image,
         Some(segment::segment_anything::sam::IMAGE_SIZE),
     )?;
-
+    info!("w:{},h:{}",w,h);
     for input in &param.inputs {
-        if input.2 ==1 {
+        if input.2 == 1 {
             pos_points.push((input.0, input.1));
         } else {
             neg_points.push((input.0, input.1));
         }
     }
 
-    let neg_points = if !neg_points.is_empty() {
-        Some(neg_points)
-    } else {
-        None
-    };
-
     let mask = if let Some(api) = config.use_api {
-        inference_api(&api, param.image,&pos_points, neg_points.as_deref()).await?
+        let neg_points = if !neg_points.is_empty() {
+            Some(neg_points)
+        } else {
+            None
+        };
+        inference_api(&api, param.image, &pos_points, neg_points.as_deref()).await?
     } else {
+        let pos_points: Vec<(f64, f64)> = pos_points
+            .iter()
+            .map(|(x, y)| (x / w as f64, y / h as f64))
+            .collect();
+        let neg_points: Vec<(f64, f64)> = neg_points
+            .iter()
+            .map(|(x, y)| (x / w as f64, y / h as f64))
+            .collect();
+        let neg_points = if !neg_points.is_empty() {
+            Some(neg_points)
+        } else {
+            None
+        };
         let mask = model.inference(image, &pos_points, neg_points.as_deref())?;
         mask.to_base64(w as u32, h as u32).unwrap()
     };
@@ -59,7 +71,7 @@ pub(crate) async fn sam_anything_base64(
 
 async fn inference_api(
     api: &str,
-    images:String,
+    images: String,
     pos_points: &[(f64, f64)],
     neg_points: Option<&[(f64, f64)]>,
 ) -> Result<String, reqwest::Error> {
@@ -71,10 +83,10 @@ async fn inference_api(
         pub mask: String,
     }
 
-    #[derive(Debug,Serialize)]
+    #[derive(Debug, Serialize)]
     pub struct Form {
-        images:String,
-        inputs: Vec<String>
+        images: String,
+        inputs: Vec<String>,
     }
 
     let mut inputs = vec![];
@@ -87,22 +99,12 @@ async fn inference_api(
         }
     }
 
-    let form = Form {
-        images,
-        inputs,
-    };
+    let form = Form { images, inputs };
     // info!("{:?}",&form);
 
     let client = reqwest::Client::new();
-    let res: Response = client
-        .post(api)
-        .json(&form)
-        .send()
-        .await?
-        .json()
-        .await?;
+    let res: Response = client.post(api).json(&form).send().await?.json().await?;
     // info!("{:?}",&res);
-
 
     Ok(res.mask)
 }
@@ -148,7 +150,7 @@ pub(crate) async fn sam_anything(
     if let Some((_name, bytes)) = files.first() {
         let (image, h, w) =
             load_image_from_mem(bytes, Some(segment::segment_anything::sam::IMAGE_SIZE))?;
-
+        
         let pos_points: Vec<(f64, f64)> = pos_points
             .into_iter()
             .map(|x| (x.0 as f64 / w as f64, x.1 as f64 / h as f64))

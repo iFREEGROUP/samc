@@ -9,8 +9,14 @@ pub struct Config {
     pub base_dir: String,
 
     pub use_api:Option<String>,
+
+    #[serde(default = "default_tiny")]
+    pub use_tiny:bool
 }
 
+fn default_tiny() -> bool {
+    false
+}
 
 fn default_port() -> u16 {
     5050

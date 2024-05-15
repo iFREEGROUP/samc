@@ -1,6 +1,7 @@
 pub mod segment_anything;
 use self::segment_anything::sam::Sam;
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
+use candle_core::IndexOp;
 pub use candle_core::{DType, Device, Error, Tensor};
 use candle_nn::VarBuilder;
 use image::DynamicImage;
@@ -167,12 +168,12 @@ impl SegmentInferable for Segment {
         let points = iter_points.chain(iter_neg_points).collect::<Vec<_>>();
 
         let start_time = std::time::Instant::now();
-        let (mask, iou_predictions) = self.model.forward(&image, &points, false)?;
+        let (mask, iou_predictions) = self.model.forward(&image, &points, true)?;
         println!(
             "mask generated in {:.2}s",
             start_time.elapsed().as_secs_f32()
         );
-        
+        let mask = mask.i(2)?.unsqueeze(0)?;
         println!("iou_predictions: {iou_predictions}");
 
         let mask = (mask.ge(0.)? * 255.)?;

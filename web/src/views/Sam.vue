@@ -297,7 +297,7 @@ onMounted(async () => {
                             <p class="w-12">{{ angle }}°</p>
                             <Slider v-model="angle" :max="180" :min="-180" @change="changeAngleHandle"
                                 @slideend="slideendAngleHandle" class="w-64" />
-                            <span>确认角度：{{ imageAngle }}</span>
+                            <span class="ml-2">确认角度：{{ imageAngle }}</span>
                         </li>
                         <li class="mr-2">
                             <Button :severity="'secondary'" @click="saveHandle" icon="pi pi-save">

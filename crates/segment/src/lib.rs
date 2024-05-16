@@ -6,7 +6,6 @@ use candle_core::IndexOp;
 pub use candle_core::{DType, Device, Error, Tensor};
 use candle_nn::VarBuilder;
 use image::DynamicImage;
-use tracing::info;
 use std::{
     io::{Cursor, Write},
     path::Path,

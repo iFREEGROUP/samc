@@ -14,13 +14,14 @@ import { list_files, sam_from_base64, save_mask } from '../model';
 import { watch } from 'vue';
 import { useToast } from 'primevue/usetoast';
 import Toast from 'primevue/toast';
+import Slider from 'primevue/slider';
 
 
 const toast = useToast();
 const resetRef = ref(null)
 const samcCanvas = ref(null);
 const currentImage = ref({
-    index:-1,
+    index: -1,
     url: "",
     path: "",
     mask_url: "",
@@ -39,6 +40,8 @@ const configImage = ref({
     width: 100,
     height: 100,
 })
+const angle = ref(0)
+const imageAngle = ref(0)
 const annotationStatus = ref(false)
 const showMask = ref(false)
 const maskRef = ref(null)
@@ -52,6 +55,15 @@ const configMask = ref({
     height: 100,
     name: 'mask',
     id: "mask"
+})
+const configGroup = ref({
+    x: 0,
+    y: 0,
+    listening: false,
+    offset: {
+        offsetX: 0,
+        offsetY: 0
+    }
 })
 const circleItems = ref([])
 const files = ref([])
@@ -72,7 +84,7 @@ const fetch_files = async () => {
 
 const base_api = `${import.meta.env.VITE_APP_API}/data`
 
-const checkCurrentImageHandle = (file,index) => {
+const checkCurrentImageHandle = (file, index) => {
     currentImage.value.index = index
     currentImage.value.url = `${base_api}/${file.image_path}`
     currentImage.value.path = file.image_path
@@ -162,7 +174,7 @@ const onPointerDown = (e) => {
 }
 
 const saveHandle = () => {
-    save_mask(configMask.value.image.src, currentImage.value.path).then((r) => {
+    save_mask(configMask.value.image.src, currentImage.value.path,imageAngle.value).then((r) => {
         console.log(r.data.data)
         files.value[currentImage.value.index].mask_path = r.data.data.file_name
         toast.add({ severity: 'success', summary: '保存成功', detail: '保存成功', life: 3000 });
@@ -171,6 +183,21 @@ const saveHandle = () => {
 
 const setAnnotationStatus = (status) => {
     annotationStatus.value = !status
+}
+const slideendAngleHandle = (a) => {
+    imageAngle.value = a.value
+    let node = groupRef.value.getNode()
+    node.rotation(0)
+}
+const changeAngleHandle = (a) => {
+    let node = groupRef.value.getNode()
+    node.x(configImage.value.width / 2)
+    node.y(configImage.value.height / 2)
+    node.offsetX(configImage.value.width / 2)
+    node.offsetY(configImage.value.width / 2)
+    node.rotation(a)
+
+    console.log(node)
 }
 
 onMounted(async () => {
@@ -209,8 +236,15 @@ onMounted(async () => {
         maskRef.value.getNode().hide()
     }
     showMask.value = !!currentImage.value.mask_path
+    let node = groupRef.value.getNode()
+    node.x(configImage.value.width / 2)
+    node.y(configImage.value.height / 2)
+    node.offsetX(configImage.value.width / 2)
+    node.offsetY(configImage.value.width / 2)
+
+    console.log(node)
     watch(annotationStatus, (val) => {
-        groupRef.value.getNode().listening(val)
+        node.listening(val)
         if (val) {
             samcCanvas.value.style.cursor = 'crosshair'
         } else {
@@ -224,9 +258,10 @@ onMounted(async () => {
         <div class="col-span-1 h-full">
             <div class="w-full h-full bg-zinc-100 ">
                 <ul class="h-screen overflow-x-hidden overflow-y-scroll scrollbar-thin">
-                    <li class="cursor-pointer m-2" v-for="(file,index) in files" :key="file.image_path"
-                        @click="checkCurrentImageHandle(file,index)">
-                        <div class="relative bg-white p-2 border rounded-md overflow-hidden hover:border-zinc-500" :class="{'border-zinc-500':index==currentImage.index}">
+                    <li class="cursor-pointer m-2" v-for="(file, index) in files" :key="file.image_path"
+                        @click="checkCurrentImageHandle(file, index)">
+                        <div class="relative bg-white p-2 border rounded-md overflow-hidden hover:border-zinc-500"
+                            :class="{ 'border-zinc-500': index == currentImage.index }">
                             <!-- <Image :src="`${base_api}/${file}`" /> -->
                             <span class="my-2 text-wrap break-all" :class="{
                         'text-green-500': file.mask_path
@@ -238,10 +273,10 @@ onMounted(async () => {
         </div>
         <div class="col-span-7 bg-zinc-200" ref="samcCanvas">
             <Toast />
-            <div class="relative flex">
+            <div class="relative ">
                 <div class="border-r border-zinc-100 mr-2">
-                    <ul class="flex flex-col items-center justify-center  p-2 bg-zinc-100">
-                        <li class="mb-2">
+                    <ul class="flex  items-center  p-2 bg-zinc-100">
+                        <li class="mr-2">
                             <Button :severity="annotationStatus ? 'default' : 'secondary'"
                                 @click="setAnnotationStatus(annotationStatus)">
                                 <template #icon>
@@ -250,14 +285,20 @@ onMounted(async () => {
                                 </template>
                             </Button>
                         </li>
-                        <li class="mb-2">
+                        <li class="mr-2">
                             <Button :severity="'secondary'" @click="resetHandle" ref="resetRef">
                                 <template #icon>
                                     <span v-html="resetBlack"></span>
                                 </template>
                             </Button>
                         </li>
-                        <li class="mb-2">
+                        <li class="flex items-center mr-6">
+                            <p class="w-12">{{ angle }}°</p>
+                            <Slider v-model="angle" :max="180" :min="-180" @change="changeAngleHandle"
+                                @slideend="slideendAngleHandle" class="w-64" />
+                            <span>确认角度：{{ imageAngle }}</span>
+                        </li>
+                        <li class="mr-2">
                             <Button :severity="'secondary'" @click="saveHandle" icon="pi pi-save">
                                 <template #icon>
                                     <span v-html="saveIcon"></span>
@@ -269,7 +310,7 @@ onMounted(async () => {
                 <div id="container" class="p-4">
                     <v-stage :config="configKonva">
                         <v-layer>
-                            <v-group @pointerdown="onPointerDown" ref="groupRef">
+                            <v-group @pointerdown="onPointerDown" :config="configGroup" ref="groupRef">
                                 <v-image :config="configImage" ref="imageRef"></v-image>
                                 <v-image ref="maskRef" :config="configMask" :opacity="0.5"></v-image>
                                 <v-circle v-for="item in circleItems" :key="item.id" :config="item"></v-circle>

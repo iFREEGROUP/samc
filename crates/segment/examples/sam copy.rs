@@ -10,7 +10,7 @@ extern crate accelerate_src;
 use candle_core::{DType, IndexOp};
 use candle_nn::VarBuilder;
 use clap::Parser;
-use segment::{segment_anything::sam::{self, IMAGE_SIZE}, Device, Tensor};
+use segment::{segment_anything::sam, Device, Tensor};
 use tracing::info;
 
 #[derive(Parser)]
@@ -122,7 +122,29 @@ pub fn main() -> anyhow::Result<()> {
         sam::Sam::new(768, 12, 12, &[2, 5, 8, 11], vb)? // sam_vit_b
     };
 
-    let iter_points = args.point.iter().map(|p| (p, true));
+    if args.generate_masks {
+        // Default options similar to the Python version.
+        let bboxes = sam.generate_masks(
+            &image,
+            /* points_per_side */ 32,
+            /* crop_n_layer */ 0,
+            /* crop_overlap_ratio */ 512. / 1500.,
+            /* crop_n_points_downscale_factor */ 1,
+        )?;
+        for (idx, bbox) in bboxes.iter().enumerate() {
+            println!("{idx} {bbox:?}");
+            let mask = (&bbox.data.to_dtype(DType::U8)? * 255.)?;
+            let (h, w) = mask.dims2()?;
+            let mask = mask.broadcast_as((3, h, w))?;
+            candle_examples::save_image_resize(
+                &mask,
+                format!("sam_mask{idx}.png"),
+                initial_h,
+                initial_w,
+            )?;
+        }
+    } else {
+        let iter_points = args.point.iter().map(|p| (p, true));
         let iter_neg_points = args.neg_point.iter().map(|p| (p, false));
         let points = iter_points
             .chain(iter_neg_points)
@@ -136,30 +158,17 @@ pub fn main() -> anyhow::Result<()> {
             })
             .collect::<anyhow::Result<Vec<_>>>()?;
         let start_time = std::time::Instant::now();
-        
-        let data = sam.embeddings(&image)?;
-
-        let (mask, iou_predictions) = sam.forward_for_embeddings(&data, initial_h, initial_w, &points, false)?;
-        // let (mask, iou_predictions) = sam.forward(&image, &points, true)?;
-        
-        let iou = iou_predictions.flatten(0, 1)?.to_vec1::<f32>()?[0];
-        let mask_shape = mask.dims().to_vec();
-        let mask_data = mask.ge(0f32)?.flatten_all()?.to_vec1::<u8>()?;
-    
+        let (mask, iou_predictions) = sam.forward(&image, &points, true)?;
         println!(
             "mask generated in {:.2}s",
             start_time.elapsed().as_secs_f32()
         );
+        println!("mask1:{:?}",mask.i(2)?);
         println!("iou_predictions: {iou_predictions}");
-        println!("mask_shape: {:?}",&mask_shape);
 
-        // let mask = mask.i(2)?.unsqueeze(0)?;//第二个
+        let mask = mask.i(2)?.unsqueeze(0)?;//第二个
         println!("mask:\n{:?}",mask.shape());
-        let mask = mask
-            .upsample_nearest2d(IMAGE_SIZE, IMAGE_SIZE)?
-            .get(0)?
-            .i((.., ..initial_h, ..initial_w))?;
-        // let mask = (mask.ge(args.threshold)? * 255.)?;
+        let mask = (mask.ge(args.threshold)? * 255.)?;
         let (_one, h, w) = mask.dims3()?;
         let mask = mask.expand((3, h, w))?;
 
@@ -199,6 +208,7 @@ pub fn main() -> anyhow::Result<()> {
             };
             imageproc::drawing::draw_filled_circle_mut(&mut img, (x, y), 3, color);
         }
-        img.save("sam_merged.jpg")?;
+        img.save("sam_merged.jpg")?
+    }
     Ok(())
 }

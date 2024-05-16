@@ -5,7 +5,11 @@ use axum::{extract::State, response::IntoResponse, Json};
 use segment::base64_to_image;
 use serde_json::json;
 use std::path::PathBuf;
-use tokio::io::AsyncWriteExt;
+use tokio::{
+    fs::OpenOptions,
+    io::{AsyncWriteExt, BufWriter},
+};
+use tracing::info;
 
 #[derive(Debug, serde::Serialize)]
 pub(crate) struct FileInfo {
@@ -70,6 +74,7 @@ pub(crate) async fn image_files(State(config): State<Config>) -> Result<impl Int
 pub(crate) struct MaskParam {
     pub(crate) ori_image_name: String,
     pub(crate) mask: String,
+    pub(crate) rotate: f32,
 }
 
 pub(crate) async fn save_mask(
@@ -77,7 +82,7 @@ pub(crate) async fn save_mask(
     Json(param): Json<MaskParam>,
 ) -> Result<impl IntoResponse, Error> {
     // 获取原图片的路径
-    let ori_image_path = PathBuf::from(config.base_dir.as_str()).join(param.ori_image_name);
+    let ori_image_path = PathBuf::from(config.base_dir.as_str()).join(&param.ori_image_name);
     let then = ori_image_path
         .as_path()
         .file_stem()
@@ -93,6 +98,22 @@ pub(crate) async fn save_mask(
         .await
         .map_err(|e| anyhow!(e.to_string()))?;
     let _ = f.write_all(&res).await;
+
+    //保存旋转角度
+    let mut rotate_file_path = PathBuf::from(&config.base_dir);
+    rotate_file_path.push("rotate.txt");
+    let mut rotate_file = OpenOptions::new()
+        .append(true) // 设置为追加模式
+        .create(true) // 如果文件不存在，则创建
+        .open(rotate_file_path)
+        .await
+        .map_err(|e| anyhow!(e.to_string()))?;
+
+    let content = format!("{},{}\n", &param.ori_image_name, param.rotate);
+    rotate_file
+        .write_all(content.as_bytes())
+        .await
+        .map_err(|e| anyhow!(e.to_string()))?;
 
     Ok(Payload::success(json!({
         "full_path":mask_image_path,

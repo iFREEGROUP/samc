@@ -1,4 +1,5 @@
 pub mod segment_anything;
+pub mod polygon;
 use self::segment_anything::sam::Sam;
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use candle_core::IndexOp;

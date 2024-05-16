@@ -12,4 +12,4 @@ export const sam_from_base64 = (base64,inputs) => {
 
 export const list_files = ()=> axios.get(`/files`)
 
-export const save_mask = (mask,ori_image_name)=> axios.post(`/masks`,{mask,ori_image_name})
+export const save_mask = (mask,ori_image_name,rotate)=> axios.post(`/masks`,{mask,ori_image_name,rotate})

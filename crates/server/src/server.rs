@@ -32,8 +32,10 @@ pub async fn start(conf: Config) {
     download_model(model_file, conf.use_tiny).await;
 
     let device = if cfg!(feature = "cuda") {
+        info!("use cuda");
         segment::Device::new_cuda(0).unwrap()
     } else {
+        info!("use cpu");
         segment::Device::Cpu
     };
     let model = Segment::new(model_file, device, conf.use_tiny).unwrap();

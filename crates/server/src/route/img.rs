@@ -7,10 +7,9 @@ use segment::base64_to_image;
 use serde_json::json;
 use std::path::{Path, PathBuf};
 use tokio::{
-    fs::{File, OpenOptions},
-    io::{AsyncReadExt as _, AsyncWriteExt},
+    fs::OpenOptions,
+    io::AsyncWriteExt,
 };
-use tracing::info;
 
 async fn is_image(path: &Path) -> anyhow::Result<bool> {
     match ImageInfo::from_file_path(path) {

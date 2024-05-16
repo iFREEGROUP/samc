@@ -92,6 +92,7 @@ const checkCurrentImageHandle = (file, index) => {
     currentImage.value.mask_url = `${base_api}/${file.mask_path}`
     points.value = []
     circleItems.value = []
+    imageAngle.value = 0
 
     let imageObj = new window.Image()
     imageObj.src = `${base_api}/${file.image_path}`

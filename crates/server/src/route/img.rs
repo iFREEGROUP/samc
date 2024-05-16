@@ -2,14 +2,26 @@ use crate::error::Error;
 use crate::{config::Config, render::Payload};
 use anyhow::anyhow;
 use axum::{extract::State, response::IntoResponse, Json};
+use imageinfo::ImageInfo;
 use segment::base64_to_image;
 use serde_json::json;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tokio::{
-    fs::OpenOptions,
-    io::{AsyncWriteExt, BufWriter},
+    fs::{File, OpenOptions},
+    io::{AsyncReadExt as _, AsyncWriteExt},
 };
 use tracing::info;
+
+async fn is_image(path: &Path) -> anyhow::Result<bool> {
+    match ImageInfo::from_file_path(path) {
+        Ok(info) => {
+            Ok(
+                matches!(info.ext, "png" | "jpg" | "jpeg"),
+            )
+        }
+        Err(e) => Err(anyhow!(e.to_string())),
+    }
+}
 
 #[derive(Debug, serde::Serialize)]
 pub(crate) struct FileInfo {
@@ -39,6 +51,11 @@ pub(crate) async fn image_files(State(config): State<Config>) -> Result<impl Int
                 }
                 if file_name.ends_with("_mask.png") {
                     continue;
+                }
+                if let Ok(r) = is_image(entity.path().as_path()).await {
+                    if !r {
+                        continue;
+                    }
                 }
 
                 let name: Vec<&str> = file_name.split('.').collect();

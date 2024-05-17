@@ -8,24 +8,44 @@ use serde_json::json;
 use std::path::{Path, PathBuf};
 use tokio::{
     fs::OpenOptions,
-    io::AsyncWriteExt,
+    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
 };
 
 async fn is_image(path: &Path) -> anyhow::Result<bool> {
     match ImageInfo::from_file_path(path) {
-        Ok(info) => {
-            Ok(
-                matches!(info.ext, "png" | "jpg" | "jpeg"),
-            )
-        }
+        Ok(info) => Ok(matches!(info.ext, "png" | "jpg" | "jpeg")),
         Err(e) => Err(anyhow!(e.to_string())),
     }
+}
+
+async fn find_rotate_from_file(base_dir: &Path, file: &str) -> anyhow::Result<f32> {
+    let mut rotate = 0.0;
+    let rotate_label_file_path = base_dir.join("rotate.txt");
+    let rotate_label_file = tokio::fs::File::open(rotate_label_file_path).await?;
+
+    let reader = BufReader::new(rotate_label_file);
+
+    let mut lines = reader.lines();
+
+    while let Some(line) = lines.next_line().await? {
+        if line.is_empty() {
+            continue;
+        }
+        let sp: Vec<&str> = line.split(',').collect();
+        if sp[0] == file {
+            rotate = sp[1].parse::<f32>().unwrap_or_default();
+            break;
+        }
+    }
+
+    Ok(rotate)
 }
 
 #[derive(Debug, serde::Serialize)]
 pub(crate) struct FileInfo {
     pub(crate) image_path: String,
     pub(crate) mask_path: Option<String>,
+    pub(crate) rotate: f32,
 }
 
 pub(crate) async fn image_files(State(config): State<Config>) -> Result<impl IntoResponse, Error> {
@@ -72,10 +92,13 @@ pub(crate) async fn image_files(State(config): State<Config>) -> Result<impl Int
                 } else {
                     None
                 };
+                let base_dir = Path::new(config.base_dir.as_str());
+                let rotate = find_rotate_from_file(base_dir, file_name.as_str()).await?;
 
                 files.push(FileInfo {
                     image_path: file_name,
                     mask_path,
+                    rotate,
                 });
             }
         } else {
@@ -135,4 +158,24 @@ pub(crate) async fn save_mask(
         "full_path":mask_image_path,
         "file_name":file_name,
     })))
+}
+
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_find_rotate_from_file()-> anyhow::Result<()>{
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        let base_dir = PathBuf::from(manifest_dir);
+        let base_dir = base_dir.join("testdata");
+        println!("CARGO_MANIFEST_DIR: {:?}",&base_dir);
+        let file = "1711426394_6_9759.jpg";
+        let rotate = find_rotate_from_file(base_dir.as_path(), file).await?;
+
+        assert_eq!(15f32, rotate);
+
+        Ok(())
+    }
 }

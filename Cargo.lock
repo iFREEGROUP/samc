@@ -2894,6 +2894,7 @@ dependencies = [
  "image",
  "imageproc",
  "rayon",
+ "simplify-polyline",
  "tracing",
  "tracing-chrome",
  "tracing-subscriber",
@@ -3068,6 +3069,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "95890f873bec569a0362c235787f3aca6e1e887302ba4840839bcc6459c42da6"
 dependencies = [
  "quote",
+]
+
+[[package]]
+name = "simplify-polyline"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d236f7d768695e098c0c026be222f48b6c26558ce472e4c1abcbc3cc7e0fd69e"
+dependencies = [
+ "num-traits",
 ]
 
 [[package]]

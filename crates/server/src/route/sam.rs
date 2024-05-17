@@ -61,7 +61,8 @@ pub(crate) async fn sam_anything_base64(
             None
         };
         let mask = model.inference(image, &pos_points, neg_points.as_deref())?;
-        mask.to_base64(w as u32, h as u32).unwrap()
+        
+        mask.to_base64(w as u32, h as u32)?
     };
 
     Ok(Payload::success(json!({

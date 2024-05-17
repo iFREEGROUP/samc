@@ -1,11 +1,13 @@
-pub mod segment_anything;
 pub mod polygon;
+pub mod segment_anything;
 use self::segment_anything::sam::Sam;
+use anyhow::anyhow;
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use candle_core::IndexOp;
 pub use candle_core::{DType, Device, Error, Tensor};
 use candle_nn::VarBuilder;
 use image::DynamicImage;
+use polygon::MicroConnecter;
 use std::{
     io::{Cursor, Write},
     path::Path,
@@ -18,8 +20,17 @@ pub struct Mask {
     pub points: Vec<(f64, f64, bool)>,
 }
 
+pub fn image_to_base64(data: &[u8]) -> Result<String, anyhow::Error> {
+    let img = image::load_from_memory(data)?;
+    let mut buf: Vec<u8> = Vec::new();
+    img.write_to(&mut Cursor::new(&mut buf), image::ImageFormat::Png)?;
+    let b64 = BASE64.encode(&buf);
+    Ok(b64)
+}
+
 impl Mask {
     pub fn to_base64(&self, w: u32, h: u32) -> Result<String, anyhow::Error> {
+
         let mask_img: image::ImageBuffer<image::Rgb<u8>, Vec<u8>> =
             image::ImageBuffer::from_raw(self.w as u32, self.h as u32, self.mask.clone()).unwrap();
         let mask_img = image::DynamicImage::from(mask_img).resize_to_fill(
@@ -27,6 +38,8 @@ impl Mask {
             h,
             image::imageops::FilterType::CatmullRom,
         );
+
+        let mask_img = mask_img.fill_polygon(128u8, 30).map_err(|e| anyhow!(e.to_string()))?;
 
         let mut buf: Vec<u8> = Vec::new();
         mask_img.write_to(&mut Cursor::new(&mut buf), image::ImageFormat::Png)?;
@@ -68,7 +81,7 @@ pub fn load_image<P: AsRef<std::path::Path>>(
     Ok((data, initial_h, initial_w))
 }
 
-pub fn base64_to_image(data: &str) ->anyhow::Result<Vec<u8>> {
+pub fn base64_to_image(data: &str) -> anyhow::Result<Vec<u8>> {
     let offset = data.find(',').unwrap_or(data.len()) + 1;
 
     let mut value = String::from(data);
@@ -137,13 +150,17 @@ pub struct Segment {
 }
 
 impl Segment {
-    pub fn new<P: AsRef<Path>>(model_file: P, device: Device,use_tiny:bool) -> candle_core::Result<Self> {
+    pub fn new<P: AsRef<Path>>(
+        model_file: P,
+        device: Device,
+        use_tiny: bool,
+    ) -> candle_core::Result<Self> {
         let vb =
             unsafe { VarBuilder::from_mmaped_safetensors(&[model_file], DType::F32, &device)? };
 
         let model = if use_tiny {
             Sam::new_tiny(vb)?
-        }else {
+        } else {
             Sam::new(768, 12, 12, &[2, 5, 8, 11], vb)? // sam_vit_b
         };
 
@@ -177,11 +194,11 @@ impl SegmentInferable for Segment {
         println!("iou_predictions: {iou_predictions}");
 
         let mask = (mask.ge(0.)? * 255.)?;
-        
+
         let (_one, h, w) = mask.dims3()?;
         let mask = mask.expand((3, h, w))?;
         let mask_pixels = mask.permute((1, 2, 0))?.flatten_all()?.to_vec1::<u8>()?;
-        println!("mask:\n{:?}",mask.shape());
+        println!("mask:\n{:?}", mask.shape());
         Ok(Mask {
             mask: mask_pixels,
             h,

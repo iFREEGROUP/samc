@@ -47,4 +47,4 @@ API 只需要返回以下格式即可：
 }
 ```
 
-![screenshot-20240517-224120](./testdata/screenshot-20240517-224120.png)~~~~
+![screenshot-20240517-224120](./testdata/screenshot-20240517-224120.png)

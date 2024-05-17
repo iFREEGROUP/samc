@@ -3,3 +3,5 @@
 *.jpg
 *.png
 /none_pic
+!testdata/*.jpg
+!testdata/*.png

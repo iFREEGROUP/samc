@@ -86,14 +86,20 @@ pub(crate) async fn image_files(State(config): State<Config>) -> Result<impl Int
                 let name = name.join("");
                 let mask_path = format!("{}_mask.png", name);
                 // info!("name:{:?}",&mask_path);
-                let mask_full_path = format!("{}/{}", &config.base_dir, &mask_path);
+                let mut mask_full_path = PathBuf::from(&config.base_dir);
+                mask_full_path.push(&mask_path);
                 let mask_path = if std::path::Path::new(&mask_full_path).exists() {
                     Some(mask_path)
                 } else {
                     None
                 };
                 let base_dir = Path::new(config.base_dir.as_str());
-                let rotate = find_rotate_from_file(base_dir, file_name.as_str()).await?;
+                let rotate =
+                    if let Ok(rotate) = find_rotate_from_file(base_dir, file_name.as_str()).await {
+                        rotate
+                    } else {
+                        0f32
+                    };
 
                 files.push(FileInfo {
                     image_path: file_name,
@@ -160,17 +166,16 @@ pub(crate) async fn save_mask(
     })))
 }
 
-
 #[cfg(test)]
 mod test {
     use super::*;
 
     #[tokio::test]
-    async fn test_find_rotate_from_file()-> anyhow::Result<()>{
+    async fn test_find_rotate_from_file() -> anyhow::Result<()> {
         let manifest_dir = env!("CARGO_MANIFEST_DIR");
         let base_dir = PathBuf::from(manifest_dir);
         let base_dir = base_dir.join("testdata");
-        println!("CARGO_MANIFEST_DIR: {:?}",&base_dir);
+        println!("CARGO_MANIFEST_DIR: {:?}", &base_dir);
         let file = "1711426394_6_9759.jpg";
         let rotate = find_rotate_from_file(base_dir.as_path(), file).await?;
 

@@ -140,6 +140,7 @@ pub trait SegmentInferable: Send + std::marker::Sync + 'static {
         image: Tensor,
         points: &[(f64, f64)],
         neg_points: Option<&[(f64, f64)]>,
+        masks:Option<Tensor>,
     ) -> candle_core::Result<Mask>;
 }
 
@@ -174,6 +175,7 @@ impl SegmentInferable for Segment {
         image: Tensor,
         pos_points: &[(f64, f64)],
         neg_points: Option<&[(f64, f64)]>,
+        masks:Option<Tensor>,
     ) -> candle_core::Result<Mask> {
         // let (image, initial_h, initial_w) = load_image(image_path, Some(candle_transformers::models::segment_anything::sam::IMAGE_SIZE))?;
         let image = image.to_device(&self.device)?;
@@ -185,7 +187,7 @@ impl SegmentInferable for Segment {
         let points = iter_points.chain(iter_neg_points).collect::<Vec<_>>();
 
         let start_time = std::time::Instant::now();
-        let (mask, iou_predictions) = self.model.forward(&image, &points, true)?;
+        let (mask, iou_predictions) = self.model.forward(&image, &points, masks.as_ref(),true)?;
         println!(
             "mask generated in {:.2}s",
             start_time.elapsed().as_secs_f32()

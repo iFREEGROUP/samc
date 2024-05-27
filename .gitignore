@@ -5,3 +5,4 @@
 /none_pic
 !testdata/*.jpg
 !testdata/*.png
+/.idea

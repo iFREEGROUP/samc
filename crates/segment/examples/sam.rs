@@ -139,7 +139,7 @@ pub fn main() -> anyhow::Result<()> {
         
         let data = sam.embeddings(&image)?;
 
-        let (mask, iou_predictions) = sam.forward_for_embeddings(&data, initial_h, initial_w, &points, false)?;
+        let (mask, iou_predictions) = sam.forward_for_embeddings(&data, initial_h, initial_w, &points,None,None, false)?;
         // let (mask, iou_predictions) = sam.forward(&image, &points, true)?;
         
         let iou = iou_predictions.flatten(0, 1)?.to_vec1::<f32>()?[0];

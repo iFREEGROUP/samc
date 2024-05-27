@@ -132,6 +132,7 @@ impl Sam {
         &self,
         img: &Tensor,
         points: &[(f64, f64, bool)],
+        masks:Option<&Tensor>,
         multimask_output: bool,
     ) -> Result<(Tensor, Tensor)> {
         let (_c, original_h, original_w) = img.dims3()?;
@@ -142,6 +143,8 @@ impl Sam {
             original_h,
             original_w,
             points,
+            None,
+            masks,
             multimask_output,
         )?;
         let mask = low_res_mask
@@ -156,12 +159,15 @@ impl Sam {
     /// The prompt is specified as a list of points `(x, y, b)`. `x` and `y` are the point
     /// coordinates (between 0 and 1) and `b` is `true` for points that should be part of the mask
     /// and `false` for points that should be part of the background and so excluded from the mask.
+    #[allow(clippy::too_many_arguments)]
     pub fn forward_for_embeddings(
         &self,
         img_embeddings: &Tensor,
         original_h: usize,
         original_w: usize,
         points: &[(f64, f64, bool)],
+        boxes: Option<&Tensor>,
+        masks: Option<&Tensor>,
         multimask_output: bool,
     ) -> Result<(Tensor, Tensor)> {
         let image_pe = self.prompt_encoder.get_dense_pe()?;
@@ -187,7 +193,7 @@ impl Sam {
         };
         let points = points.as_ref().map(|xy| (&xy.0, &xy.1));
         let (sparse_prompt_embeddings, dense_prompt_embeddings) =
-            self.prompt_encoder.forward(points, None, None)?;
+            self.prompt_encoder.forward(points, boxes, masks)?;
         self.mask_decoder.forward(
             img_embeddings,
             &image_pe,

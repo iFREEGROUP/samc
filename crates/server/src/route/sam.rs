@@ -17,6 +17,7 @@ use crate::{config::Config, error::Error, render::Payload};
 pub(crate) struct SegmentParam {
     pub(crate) image: String,
     pub(crate) inputs: Vec<(f64, f64, i16)>,
+    pub(crate) masks: Option<String>,
 }
 
 pub(crate) async fn sam_anything_base64(
@@ -30,7 +31,7 @@ pub(crate) async fn sam_anything_base64(
         &param.image,
         Some(segment::segment_anything::sam::IMAGE_SIZE),
     )?;
-    info!("w:{},h:{}",w,h);
+    info!("w:{},h:{}", w, h);
     for input in &param.inputs {
         if input.2 == 1 {
             pos_points.push((input.0, input.1));
@@ -60,8 +61,15 @@ pub(crate) async fn sam_anything_base64(
         } else {
             None
         };
-        let mask = model.inference(image, &pos_points, neg_points.as_deref())?;
-        
+        let mask = if let Some(m) = param.masks {
+            let (m, _, _) =
+                load_image_from_base64(&m, Some(segment::segment_anything::sam::IMAGE_SIZE))?;
+            Some(m)
+        } else {
+            None
+        };
+        let mask = model.inference(image, &pos_points, neg_points.as_deref(), mask)?;
+
         mask.to_base64(w as u32, h as u32)?
     };
 
@@ -151,7 +159,7 @@ pub(crate) async fn sam_anything(
     if let Some((_name, bytes)) = files.first() {
         let (image, h, w) =
             load_image_from_mem(bytes, Some(segment::segment_anything::sam::IMAGE_SIZE))?;
-        
+
         let pos_points: Vec<(f64, f64)> = pos_points
             .into_iter()
             .map(|x| (x.0 as f64 / w as f64, x.1 as f64 / h as f64))
@@ -168,7 +176,7 @@ pub(crate) async fn sam_anything(
 
         let img = image::load_from_memory(bytes)?;
 
-        let mask = model.inference(image, &pos_points, neg_points.as_deref())?;
+        let mask = model.inference(image, &pos_points, neg_points.as_deref(),None)?;
 
         mask.save(img, "temp.png").unwrap();
 

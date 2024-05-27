@@ -8,6 +8,7 @@ pub use candle_core::{DType, Device, Error, Tensor};
 use candle_nn::VarBuilder;
 use image::DynamicImage;
 use polygon::MicroConnecter;
+use tracing::info;
 use std::{
     io::{Cursor, Write},
     path::Path,
@@ -15,6 +16,7 @@ use std::{
 // pub type  Mask = Vec<u8>;
 pub struct Mask {
     pub mask: Vec<u8>,
+    pub low_mask: Vec<u8>,
     pub h: usize,
     pub w: usize,
     pub points: Vec<(f64, f64, bool)>,
@@ -106,6 +108,20 @@ pub fn load_image_from_base64(
     Ok(loaded)
 }
 
+pub fn load_mask_from_base64(
+    data: &str,
+) -> anyhow::Result<(candle_core::Tensor, usize, usize)> {
+    let res = base64_to_image(data)?;
+    let img = image::load_from_memory(&res).map_err(candle_core::Error::wrap)?;
+    
+    let (height, width) = (img.height() as usize, img.width() as usize);
+    let img = img.to_rgb8();
+    let data = img.into_raw();
+    info!("debug:::::::{}",data.len());
+    let data = Tensor::from_vec(data, (height, width, 3), &Device::Cpu)?.permute((2, 0, 1))?;
+    Ok((data, height, width))
+}
+
 pub fn load_image_from_mem(
     b: &[u8],
     resize_longest: Option<usize>,
@@ -187,7 +203,7 @@ impl SegmentInferable for Segment {
         let points = iter_points.chain(iter_neg_points).collect::<Vec<_>>();
 
         let start_time = std::time::Instant::now();
-        let (mask, iou_predictions) = self.model.forward(&image, &points, masks.as_ref(),true)?;
+        let (mask,low_mask, iou_predictions) = self.model.forward(&image, &points, masks.as_ref(),true)?;
         println!(
             "mask generated in {:.2}s",
             start_time.elapsed().as_secs_f32()
@@ -203,9 +219,13 @@ impl SegmentInferable for Segment {
         let (_one, h, w) = mask.dims3()?;
         let mask = mask.expand((3, h, w))?;
         let mask_pixels = mask.permute((1, 2, 0))?.flatten_all()?.to_vec1::<u8>()?;
-        println!("mask:\n{:?}", mask.shape());
+
+        let low_mask = (low_mask.squeeze(0)?.ge(0.)? * 255.)?.permute((1, 2, 0))?.flatten_all()?.to_vec1::<u8>()?;
+        println!("low_mask:\n{:?}", low_mask.len());
+
         Ok(Mask {
             mask: mask_pixels,
+            low_mask,
             h,
             w,
             points,

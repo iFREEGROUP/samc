@@ -6,7 +6,10 @@ use axum::{
     Json,
 };
 use hyper::StatusCode;
-use segment::{load_image_from_base64, load_image_from_mem, Masker, Segment, SegmentInferable};
+use segment::{
+    image_to_base64, load_image_from_base64, load_image_from_mem, load_mask_from_base64, Masker,
+    Segment, SegmentInferable,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tracing::info;
@@ -40,13 +43,15 @@ pub(crate) async fn sam_anything_base64(
         }
     }
 
-    let mask = if let Some(api) = config.use_api {
+    let (mask, low_mask) = if let Some(api) = config.use_api {
         let neg_points = if !neg_points.is_empty() {
             Some(neg_points)
         } else {
             None
         };
-        inference_api(&api, param.image, &pos_points, neg_points.as_deref()).await?
+        let mask = inference_api(&api, param.image, &pos_points, neg_points.as_deref()).await?;
+        let low_mask = String::new();
+        (mask, low_mask)
     } else {
         let pos_points: Vec<(f64, f64)> = pos_points
             .iter()
@@ -62,19 +67,22 @@ pub(crate) async fn sam_anything_base64(
             None
         };
         let mask = if let Some(m) = param.masks {
-            let (m, _, _) =
-                load_image_from_base64(&m, Some(segment::segment_anything::sam::IMAGE_SIZE))?;
+            let (m, _, _) = load_mask_from_base64(&m)?;
             Some(m)
         } else {
             None
         };
         let mask = model.inference(image, &pos_points, neg_points.as_deref(), mask)?;
 
-        mask.to_base64(w as u32, h as u32)?
+        (
+            mask.to_base64(w as u32, h as u32)?,
+            image_to_base64(&mask.low_mask)?,
+        )
     };
 
     Ok(Payload::success(json!({
-        "mask": mask
+        "mask": mask,
+        "low_mask": low_mask,
     })))
 }
 
@@ -176,7 +184,7 @@ pub(crate) async fn sam_anything(
 
         let img = image::load_from_memory(bytes)?;
 
-        let mask = model.inference(image, &pos_points, neg_points.as_deref(),None)?;
+        let mask = model.inference(image, &pos_points, neg_points.as_deref(), None)?;
 
         mask.save(img, "temp.png").unwrap();
 

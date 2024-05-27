@@ -134,7 +134,7 @@ impl Sam {
         points: &[(f64, f64, bool)],
         masks:Option<&Tensor>,
         multimask_output: bool,
-    ) -> Result<(Tensor, Tensor)> {
+    ) -> Result<(Tensor, Tensor, Tensor)> {
         let (_c, original_h, original_w) = img.dims3()?;
         let img = self.preprocess(img)?.unsqueeze(0)?;
         let img_embeddings = self.image_encoder.forward(&img)?;
@@ -151,7 +151,7 @@ impl Sam {
             .upsample_nearest2d(IMAGE_SIZE, IMAGE_SIZE)?
             .get(0)?
             .i((.., ..original_h, ..original_w))?;
-        Ok((mask, iou))
+        Ok((mask,low_res_mask, iou))
     }
 
     /// Generate the mask and IOU predictions from some image embeddings and prompt.

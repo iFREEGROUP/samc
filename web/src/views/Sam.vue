@@ -48,6 +48,7 @@ const showMask = ref(false)
 const maskRef = ref(null)
 const imageRef = ref(null)
 const groupRef = ref(null)
+const currentLowMask = ref(undefined)
 const configMask = ref({
     x: 0,
     y: 0,
@@ -157,8 +158,10 @@ const onPointerDown = (e) => {
                     alert("图片加载失败，可能图片过大")
                     return
                 }
-                sam_from_base64(dataUrl, points.value).then(({ data }) => {
+
+                sam_from_base64(dataUrl, points.value,currentLowMask.value).then(({ data }) => {
                     let b64 = `data:image/png;base64,${data.data.mask}`
+                    currentLowMask.value = `data:image/png;base64,${data.data.low_mask}`
                     let maskObj = new window.Image()
                     maskObj.src = b64
                     maskObj.crossOrigin = 'Anonymous';
@@ -167,7 +170,7 @@ const onPointerDown = (e) => {
                         configMask.value.image = maskObj
                         configMask.value.width = size.width
                         configMask.value.height = size.height
-                        console.log(configMask.value, size)
+                        console.log(configMask.value.image.src, size)
                     }
                     maskRef.value.getNode().show()
                 })

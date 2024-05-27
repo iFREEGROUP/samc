@@ -3,7 +3,7 @@ pub mod segment_anything;
 use self::segment_anything::sam::Sam;
 use anyhow::anyhow;
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
-use candle_core::IndexOp;
+use candle_core::{IndexOp, D};
 pub use candle_core::{DType, Device, Error, Tensor};
 use candle_nn::VarBuilder;
 use image::DynamicImage;
@@ -190,7 +190,10 @@ impl SegmentInferable for Segment {
             "mask generated in {:.2}s",
             start_time.elapsed().as_secs_f32()
         );
-        let mask = mask.i(2)?.unsqueeze(0)?;
+        let max_index = iou_predictions.argmax(D::Minus1)?.to_vec1::<u32>()?;
+        // let min_index = iou_predictions.argmin(D::Minus1)?.to_vec1::<u32>()?;
+        
+        let mask = mask.i(max_index[0] as usize)?.unsqueeze(0)?;
         println!("iou_predictions: {iou_predictions}");
 
         let mask = (mask.ge(0.)? * 255.)?;

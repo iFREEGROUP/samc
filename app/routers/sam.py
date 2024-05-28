@@ -60,7 +60,14 @@ async def sam_anything_base64(settings: Annotated[Settings, Depends(get_settings
     frame = cv2.cvtColor(best_mask, cv2.COLOR_RGB2BGR)
 
     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) 
-    contours, _ = cv2.findContours(gray_frame.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(gray_frame)
+    min_area = 100  # 根据实际情况调整
+    mask_optimized = np.zeros_like(gray_frame)
+    for i in range(1, num_labels):
+        if stats[i, cv2.CC_STAT_AREA] > min_area:
+            mask_optimized[labels == i] = 255
+    contours, _ = cv2.findContours(mask_optimized.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     mask_contours = np.zeros_like(frame)
     frame = cv2.drawContours(mask_contours, contours, -1, (0,255,0), thickness=cv2.FILLED)
     

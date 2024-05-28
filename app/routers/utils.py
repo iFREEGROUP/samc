@@ -1,21 +1,16 @@
 import base64
 import io
 import cv2
+import numpy as np
 
-def base64_to_image(base64_string: str,output_path):
+def base64_to_image(base64_string: str,output_path:str):
     image_binary = base64_to_data(base64_string)
     # 根据你的图片类型（JPEG, PNG等）使用相应的库打开并保存图片
-    try:
-        import PIL.Image
-        image = PIL.Image.open(image_binary)
-        image.save(output_path)
-        print(f"图片已成功保存至：{output_path}")
+    data = np.asarray(bytearray(image_binary), dtype="uint8")
+    image = cv2.imdecode(data,cv2.IMREAD_COLOR)
+    cv2.imwrite(output_path,image)
 
-    except ImportError:
-        print("请安装Pillow库来处理图片：pip install Pillow")
-
-
-def base64_to_data(base64_string):
+def base64_to_data(base64_string:str):
     """
     将 Base64 编码的图片数据转换为图片文件并保存。
 
@@ -30,7 +25,6 @@ def base64_to_data(base64_string):
 
     # 使用BytesIO来处理二进制数据
     # image_data = io.BytesIO(image_data)
-
     return image_data
     
 # 示例 Base64 字符串（请替换为你的实际

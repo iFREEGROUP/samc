@@ -17,7 +17,7 @@ file_router = APIRouter(
     tags=["file"],
     responses={404: {"description": "Not found"}},
 )
-
+  
 
 
 @file_router.get("/files")
@@ -68,7 +68,7 @@ class MaskParam(BaseModel):
     mask: str
     rotate: float = 0
 
-@file_router.post("/mask")
+@file_router.post("/masks")
 async def save_mask(settings: Annotated[Settings, Depends(get_settings)],item: MaskParam):
     base_dir = Path(settings.base_dir)
     ori_image_path:Path = base_dir / item.ori_image_name

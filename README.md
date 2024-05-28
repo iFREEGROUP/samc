@@ -1,27 +1,17 @@
 # samc - 分割、角度标注工具
 
 
-## 构建
-### cpu
 
-```bash
-cargo run --bin server --features cpu
-```
-### GPU
-
-```bash
-cargo run --bin server --features cuda
-```
 ## 运行
 ```bash
-./server /path/to/images/待标注的目录
+BASE_DIR=/path/to/images/待标注的目录 python app/main.py
 
 USE_TINY=true ./server /path/to/images/待标注的目录 # 使用 mobile-sam 模型
 
 ```
 ### 使用外部分割API
 ```bash
-USE_API=https://example.com/api/sam ./server /path/to/images/待标注的目录
+USE_API=https://example.com/api/sam BASE_DIR=/path/to/images/待标注的目录 python app/main.py
 
 API 需要实现以下请求参数:
 ```json
@@ -31,7 +21,8 @@ API 需要实现以下请求参数:
         [640, 640, 1],
         [640, 660, 1],
         [640, 680, 0]
-    ]
+    ],
+    "masks":"numpy string"
 }
 
 > 其中 inputs 是一个二维数组，表示每个输入的坐标，格式为 [height, width, x], x 只能是0 或 1，0表示背景，1表示前景

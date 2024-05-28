@@ -17,8 +17,6 @@ file_router = APIRouter(
     tags=["file"],
     responses={404: {"description": "Not found"}},
 )
-  
-
 
 @file_router.get("/files")
 async def get_image_files(settings: Annotated[Settings, Depends(get_settings)]):
@@ -68,12 +66,15 @@ class MaskParam(BaseModel):
     mask: str
     rotate: float = 0
 
+
 @file_router.post("/masks")
+
 async def save_mask(settings: Annotated[Settings, Depends(get_settings)],item: MaskParam):
     base_dir = Path(settings.base_dir)
     ori_image_path:Path = base_dir / item.ori_image_name
     file_name = ori_image_path.stem + "_mask.png"
     mask_image_path = base_dir / file_name
+
     base64_to_image(item.mask,str(mask_image_path))
     #保存旋转角度
     rotate_file = base_dir / "rotate.txt"

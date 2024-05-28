@@ -11,6 +11,7 @@ def base64_to_image(base64_string: str,output_path:str):
     cv2.imwrite(output_path,image)
 
 def base64_to_data(base64_string:str):
+
     """
     将 Base64 编码的图片数据转换为图片文件并保存。
 
@@ -23,8 +24,6 @@ def base64_to_data(base64_string:str):
     # 解码 Base64 数据
     image_data = base64.b64decode(base64_data)
 
-    # 使用BytesIO来处理二进制数据
-    # image_data = io.BytesIO(image_data)
     return image_data
     
 # 示例 Base64 字符串（请替换为你的实际

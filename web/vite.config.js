@@ -20,6 +20,6 @@ export default defineConfig({
       ]
     })],
     build:{
-      outDir:'../crates/server/build'
+      outDir:'../build'
     }
 })

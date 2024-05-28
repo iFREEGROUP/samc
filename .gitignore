@@ -6,3 +6,6 @@
 !testdata/*.jpg
 !testdata/*.png
 /.idea
+/.env
+/build
+/**/*.pyc

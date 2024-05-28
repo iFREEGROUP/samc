@@ -7,5 +7,4 @@
 !testdata/*.png
 /.idea
 /.env
-/build
 /**/*.pyc
